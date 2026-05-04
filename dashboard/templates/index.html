@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsPulse Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 16px;
+            color: #1a1a1a;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        .header {
+            margin-bottom: 32px;
+            background: white;
+            padding: 28px 32px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1a1a1a;
+            letter-spacing: -0.5px;
+        }
+
+        .header-subtitle {
+            font-size: 13px;
+            color: #999;
+            margin-top: 4px;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .refresh-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: #f0f2f5;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            display: inline-block;
+        }
+
+        /* Loading & Error States */
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .error-banner {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .error-banner.hidden {
+            display: none;
+        }
+
+        /* Grid Layout */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+            margin-bottom: 24px;
+        }
+
+        @media (max-width: 1024px) {
+            .dashboard-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            transition: box-shadow 0.3s ease, transform 0.3s ease;
+            min-height: 500px;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        .card-header.trending {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-bottom: none;
+        }
+
+        .card-header.api {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            border-bottom: none;
+        }
+
+        .card-header.rss {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            border-bottom: none;
+        }
+
+        .card-icon {
+            font-size: 18px;
+        }
+
+        .card-body {
+            padding: 16px 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .card-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .card-body::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .card-body::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 3px;
+        }
+
+        .card-body::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            color: #999;
+            padding: 40px 20px;
+            font-size: 14px;
+        }
+
+        .empty-state-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+            opacity: 0.5;
+        }
+
+        /* Trending Items */
+        .trending-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.2s ease;
+        }
+
+        .trending-item:hover {
+            background: #f8f8f8;
+            border-radius: 4px;
+            padding: 12px 4px;
+        }
+
+        .trending-item:last-child {
+            border-bottom: none;
+        }
+
+        .trending-rank {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            background: #f0f2f5;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #666;
+            flex-shrink: 0;
+        }
+
+        .trending-rank.top {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .trending-content {
+            flex: 1;
+            margin-left: 12px;
+        }
+
+        .trending-word {
+            font-weight: 600;
+            color: #1a1a1a;
+            word-break: break-word;
+            font-size: 14px;
+        }
+
+        .trending-count {
+            display: inline-block;
+            background: #f0f2f5;
+            color: #666;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+            margin-left: 8px;
+            white-space: nowrap;
+        }
+
+        /* News Items */
+        .news-item {
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: opacity 0.2s ease;
+        }
+
+        .news-item:hover {
+            opacity: 0.85;
+        }
+
+        .news-item:last-child {
+            border-bottom: none;
+        }
+
+        .news-source {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 600;
+            background: #f0f2f5;
+            color: #666;
+            padding: 3px 8px;
+            border-radius: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            width: fit-content;
+        }
+
+        .news-source.api {
+            background: #fef3c7;
+            color: #b45309;
+        }
+
+        .news-source.rss {
+            background: #dbeafe;
+            color: #0369a1;
+        }
+
+        .news-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #1a1a1a;
+            line-height: 1.4;
+            word-break: break-word;
+        }
+
+        .news-title a {
+            color: #667eea;
+            text-decoration: none;
+            cursor: pointer;
+            transition: color 0.2s ease;
+        }
+
+        .news-title a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+
+        .news-title a:focus-visible {
+            outline: 2px solid #667eea;
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
+
+        /* Responsive Header */
+        @media (max-width: 640px) {
+            .header {
+                padding: 20px 16px;
+            }
+
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .header-meta {
+                width: 100%;
+            }
+        }
+
+        /* Trivia Section */
+        .trivia-section {
+            margin-top: 32px;
+            margin-bottom: 32px;
+            background: white;
+            padding: 24px 32px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
+
+        .trivia-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .trivia-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+        }
+
+        .trivia-card {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .trivia-card.source {
+            border-left-color: #f5576c;
+        }
+
+        .trivia-card.time {
+            border-left-color: #00f2fe;
+        }
+
+        .trivia-icon {
+            font-size: 24px;
+            background: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+        }
+
+        .trivia-text {
+            flex: 1;
+        }
+
+        .trivia-label {
+            font-size: 12px;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .trivia-value {
+            font-size: 15px;
+            color: #1e293b;
+            line-height: 1.4;
+        }
+
+        .trivia-highlight {
+            font-weight: 700;
+            color: #10b981;
+        }
+
+        @media (max-width: 768px) {
+            .trivia-cards {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div>
+                <h1>🌍 NewsPulse</h1>
+                <p class="header-subtitle">Real-time News Analytics Dashboard</p>
+            </div>
+            <div class="header-meta">
+                <span class="status-dot"></span>
+                <span id="last-updated">Memuat...</span>
+                <span class="refresh-badge">↻ 30s</span>
+            </div>
+        </div>
+
+        <!-- Error Banner -->
+        <div id="error-banner" class="error-banner hidden">
+            <span>⚠️</span>
+            <span id="error-message">Data tidak bisa diambil. Periksa koneksi server.</span>
+        </div>
+
+        <!-- Dashboard Grid -->
+        <div class="dashboard-grid">
+            <!-- Trending Topics Card -->
+            <div class="card">
+                <div class="card-header trending">
+                    <span class="card-icon">🔥</span>
+                    <span>Topik Trending</span>
+                </div>
+                <div class="card-body" id="spark-panel">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+
+            <!-- Live API Card -->
+            <div class="card">
+                <div class="card-header api">
+                    <span class="card-icon">📢</span>
+                    <span>Berita Terkini (API)</span>
+                </div>
+                <div class="card-body" id="live-api-panel">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+
+            <!-- RSS Feed Card -->
+            <div class="card">
+                <div class="card-header rss">
+                    <span class="card-icon">📰</span>
+                    <span>Feed Nasional (RSS)</span>
+                </div>
+                <div class="card-body" id="live-rss-panel">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trivia/Fun Fact Section -->
+        <div class="trivia-section" id="trivia-section">
+            <div class="trivia-title">
+                <span>💡</span> Spark Analysis: Fun Facts
+            </div>
+            <div class="trivia-cards" id="trivia-cards-container">
+                <div class="loading">Memuat trivia...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = '/api/data';
+        const REFRESH_INTERVAL = 30000; // 30 seconds
+        let lastUpdateTime = null;
+
+        /**
+         * Format timestamp for display
+         */
+        function formatTimestamp(date) {
+            return date.toLocaleTimeString('id-ID', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+        }
+
+        /**
+         * Truncate text to specified length
+         */
+        function truncate(text, maxLength) {
+            if (!text) return '';
+            return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
+        }
+
+        /**
+         * Escape HTML special characters
+         */
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        /**
+         * Render trending topics
+         */
+        function renderTrending(data) {
+            const panel = document.getElementById('spark-panel');
+            
+            if (!data || data.length === 0) {
+                panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>Belum ada data analitik. Tunggu Spark analysis selesai.</div>';
+                return;
+            }
+
+            let html = '';
+            data.slice(0, 15).forEach((item, index) => {
+                const isTop3 = index < 3;
+                html += `
+                    <div class="trending-item">
+                        <div style="display: flex; align-items: center; flex: 1;">
+                            <div class="trending-rank ${isTop3 ? 'top' : ''}">${index + 1}</div>
+                            <div class="trending-content">
+                                <span class="trending-word">${escapeHtml(item.word || '')}</span>
+                                <span class="trending-count">${item.count || 0}x</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            panel.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📊</div>Tidak ada topik trending.</div>';
+        }
+
+        /**
+         * Render API news items
+         */
+        function renderApiNews(data) {
+            const panel = document.getElementById('live-api-panel');
+            
+            if (!data || data.length === 0) {
+                panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📢</div>Menunggu data dari GNews API...</div>';
+                return;
+            }
+
+            let html = '';
+            data.slice(0, 10).forEach((item) => {
+                const title = truncate(escapeHtml(item.title || ''), 80);
+                const source = escapeHtml(item.source || 'GNews');
+                const url = item.url ? `href="${item.url}" target="_blank" rel="noopener noreferrer"` : '';
+                
+                html += `
+                    <div class="news-item">
+                        <span class="news-source api">📢 ${source}</span>
+                        <span class="news-title">${url ? `<a ${url}>${title}</a>` : title}</span>
+                    </div>
+                `;
+            });
+            
+            panel.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📢</div>Belum ada berita dari API.</div>';
+        }
+
+        /**
+         * Render RSS news items
+         */
+        function renderRssNews(data) {
+            const panel = document.getElementById('live-rss-panel');
+            
+            if (!data || data.length === 0) {
+                panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📰</div>Menunggu data dari RSS feeds...</div>';
+                return;
+            }
+
+            let html = '';
+            data.slice(0, 10).forEach((item) => {
+                const title = truncate(escapeHtml(item.title || ''), 80);
+                const source = escapeHtml(item.source || 'RSS');
+                const url = item.url ? `href="${item.url}" target="_blank" rel="noopener noreferrer"` : '';
+                
+                html += `
+                    <div class="news-item">
+                        <span class="news-source rss">📰 ${source}</span>
+                        <span class="news-title">${url ? `<a ${url}>${title}</a>` : title}</span>
+                    </div>
+                `;
+            });
+            
+            panel.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📰</div>Belum ada berita dari RSS.</div>';
+        }
+
+        /**
+         * Render Trivia / Fun Facts
+         */
+        function renderTrivia(sparkData) {
+            const container = document.getElementById('trivia-cards-container');
+            
+            if (!sparkData) {
+                container.innerHTML = '<div class="empty-state">Data trivia belum tersedia.</div>';
+                return;
+            }
+
+            let topWordFact = 'Belum ada data.';
+            if (sparkData.top_words && sparkData.top_words.length > 0) {
+                const topWord = sparkData.top_words[0];
+                topWordFact = `Kata <span class="trivia-highlight">"${escapeHtml(topWord.word)}"</span> adalah kata paling mendominasi judul berita dengan kemunculan sebanyak <b>${topWord.count} kali</b>.`;
+            }
+
+            let topSourceFact = 'Belum ada data.';
+            if (sparkData.source_dist && sparkData.source_dist.length > 0) {
+                const topSource = sparkData.source_dist[0];
+                topSourceFact = `<span class="trivia-highlight">${escapeHtml(topSource.source)}</span> menjadi media paling aktif mempublikasikan berita dengan total <b>${topSource.total_news} artikel</b>.`;
+            }
+
+            let topTimeFact = 'Belum ada data.';
+            if (sparkData.hourly_vol && sparkData.hourly_vol.length > 0) {
+                // Find hour with max count
+                const maxHourObj = sparkData.hourly_vol.reduce((prev, current) => (prev.count > current.count) ? prev : current);
+                const hourFormatted = maxHourObj.jam_publikasi.toString().padStart(2, '0') + ':00';
+                topTimeFact = `Jam <span class="trivia-highlight">${hourFormatted}</span> merupakan waktu paling ramai (Prime Time) rilis berita, mencapai <b>${maxHourObj.count} publikasi</b>.`;
+            }
+
+            container.innerHTML = `
+                <div class="trivia-card">
+                    <div class="trivia-icon">👑</div>
+                    <div class="trivia-text">
+                        <div class="trivia-label">Topik Utama</div>
+                        <div class="trivia-value">${topWordFact}</div>
+                    </div>
+                </div>
+                <div class="trivia-card source">
+                    <div class="trivia-icon">🏢</div>
+                    <div class="trivia-text">
+                        <div class="trivia-label">Dominasi Media</div>
+                        <div class="trivia-value">${topSourceFact}</div>
+                    </div>
+                </div>
+                <div class="trivia-card time">
+                    <div class="trivia-icon">⏰</div>
+                    <div class="trivia-text">
+                        <div class="trivia-label">Prime Time Publikasi</div>
+                        <div class="trivia-value">${topTimeFact}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Update dashboard data
+         */
+        async function updateDashboard() {
+            const errorBanner = document.getElementById('error-banner');
+            
+            try {
+                const response = await fetch(API_ENDPOINT);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                // Update timestamp
+                lastUpdateTime = new Date();
+                document.getElementById('last-updated').textContent = 
+                    `Terakhir diperbarui: ${formatTimestamp(lastUpdateTime)}`;
+                
+                // Hide error banner on success
+                errorBanner.classList.add('hidden');
+                
+                // Render data
+                renderTrending(data.spark?.top_words || []);
+                renderApiNews(data.live_api || []);
+                renderRssNews(data.live_rss || []);
+                renderTrivia(data.spark);
+                
+            } catch (error) {
+                console.error('Dashboard update error:', error);
+                
+                // Show error banner
+                const errorMsg = document.getElementById('error-message');
+                errorMsg.textContent = `Gagal mengambil data: ${error.message}. Dashboard akan mencoba lagi dalam 30 detik.`;
+                errorBanner.classList.remove('hidden');
+                
+                // Set placeholder "last updated" if first load
+                if (!lastUpdateTime) {
+                    document.getElementById('last-updated').textContent = 'Koneksi error';
+                }
+            }
+        }
+
+        // Initial load
+        updateDashboard();
+
+        // Auto-refresh every 30 seconds
+        setInterval(updateDashboard, REFRESH_INTERVAL);
+
+        // Log dashboard readiness
+        console.log('🌍 NewsPulse Dashboard loaded. Auto-refresh every 30s.');
+    </script>
+</body>
+</html>

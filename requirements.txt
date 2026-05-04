@@ -1,0 +1,8 @@
+kafka-python-ng
+requests==2.31.0
+feedparser==6.0.10
+hdfs==2.7.3
+pyspark==3.5.0
+flask==3.0.0
+pandas
+legacy-cgi
