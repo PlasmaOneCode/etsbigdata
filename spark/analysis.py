@@ -85,6 +85,8 @@ def export_hdfs_topic_via_docker(topic_type, output_dir):
     """
     Fallback Windows: ekspor data HDFS lewat docker exec,
     lalu Spark baca file lokal hasil ekspor.
+    Data baru di-MERGE dengan data lama (tidak overwrite) supaya
+    histori batch lama tidak hilang.
     """
     os.makedirs(output_dir, exist_ok=True)
     local_file = os.path.join(output_dir, f"{topic_type}_from_hdfs.json")
@@ -94,11 +96,44 @@ def export_hdfs_topic_via_docker(topic_type, output_dir):
         result = subprocess.run(export_cmd, capture_output=True, text=True, check=False)
         if result.returncode != 0 or not result.stdout.strip():
             print(f"[{datetime.now()}] ⚠️  Fallback docker HDFS gagal ({topic_type}): {result.stderr}")
-            return None
+            return None  # jaga file lama, jangan overwrite dengan kosong
 
+        # --- Baca data lama dari file yang sudah ada (jika ada) ---
+        existing_items = {}
+        if os.path.exists(local_file):
+            try:
+                with open(local_file, "r", encoding="utf-8") as f_old:
+                    for line in f_old:
+                        line = line.strip()
+                        if line:
+                            try:
+                                item = json.loads(line)
+                                key = item.get("url") or item.get("title", "")
+                                if key:
+                                    existing_items[key] = item
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+        # --- Merge data baru dari HDFS ke dalam existing ---
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line:
+                try:
+                    item = json.loads(line)
+                    key = item.get("url") or item.get("title", "")
+                    if key:
+                        existing_items[key] = item  # data HDFS menimpa duplikat
+                except Exception:
+                    pass
+
+        # --- Tulis ulang file (semua data gabungan) ---
         with open(local_file, "w", encoding="utf-8") as f:
-            f.write(result.stdout)
-        print(f"[{datetime.now()}] ✅ Fallback ekspor HDFS sukses: {local_file}")
+            for item in existing_items.values():
+                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+
+        print(f"[{datetime.now()}] ✅ Fallback ekspor HDFS sukses: {local_file} ({len(existing_items)} items)")
         return local_file
     except Exception as e:
         print(f"[{datetime.now()}] ⚠️  Error fallback ekspor HDFS ({topic_type}): {e}")
@@ -301,5 +336,43 @@ def run_analysis():
         spark.stop()
         print(f"[{datetime.now()}] 🛑 SparkSession ditutup")
 
+def run_continuous(interval_seconds=300):
+    """
+    Jalankan analisis Spark secara terus-menerus setiap `interval_seconds` detik.
+    Default: 5 menit (300 detik).
+    """
+    import time
+    iteration = 0
+    print(f"[{datetime.now()}] 🔄 Mode kontinu aktif — interval {interval_seconds} detik")
+    while True:
+        iteration += 1
+        print(f"[{datetime.now()}] ========== ITERASI #{iteration} ==========")
+        try:
+            run_analysis()
+        except Exception as e:
+            print(f"[{datetime.now()}] ❌ Iterasi #{iteration} gagal: {e}")
+        print(f"[{datetime.now()}] ⏳ Menunggu {interval_seconds} detik sebelum analisis berikutnya...")
+        time.sleep(interval_seconds)
+
+
 if __name__ == "__main__":
-    run_analysis()
+    import argparse
+
+    parser = argparse.ArgumentParser(description="NewsPulse Spark Analysis")
+    parser.add_argument(
+        "--continuous",
+        action="store_true",
+        help="Jalankan analisis secara terus-menerus (loop)"
+    )
+    parser.add_argument(
+        "--interval",
+        type=int,
+        default=300,
+        help="Interval antar analisis dalam detik (default: 300 = 5 menit)"
+    )
+    args = parser.parse_args()
+
+    if args.continuous:
+        run_continuous(interval_seconds=args.interval)
+    else:
+        run_analysis()

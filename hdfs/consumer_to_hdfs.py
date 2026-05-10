@@ -28,13 +28,38 @@ def save_to_hdfs(data_list, topic_name):
             for item in data_list:
                 f.write(json.dumps(item, ensure_ascii=False) + '\n')
         
-        # 2. Simpan salinan untuk dashboard live (10 items terakhir)
+        # 2. Simpan salinan untuk dashboard live (akumulasi artikel lama + baru)
+        MAX_LIVE_ITEMS = 50  # Maksimal artikel disimpan di live JSON
         dashboard_file = os.path.join(DASHBOARD_DIR, f"live_{topic_name.split('-')[1]}.json")
-        print(f"[{datetime.now()}] 📊 Menyimpan live data ke: {dashboard_file}")
+        print(f"[{datetime.now()}] 📊 Mengakumulasi live data ke: {dashboard_file}")
         os.makedirs(os.path.dirname(dashboard_file), exist_ok=True)
+
+        # Baca data lama jika ada
+        existing_items = []
+        if os.path.exists(dashboard_file):
+            try:
+                with open(dashboard_file, 'r', encoding='utf-8') as f_old:
+                    existing_items = json.load(f_old)
+                    if not isinstance(existing_items, list):
+                        existing_items = []
+            except Exception:
+                existing_items = []
+
+        # Gabungkan data lama + baru, deduplikasi by URL (URL baru menang)
+        seen_urls = {}
+        for item in existing_items + data_list:
+            url_key = item.get('url') or item.get('title', '')
+            seen_urls[url_key] = item
+
+        # Urutkan by timestamp terbaru, ambil MAX_LIVE_ITEMS
+        merged = sorted(
+            seen_urls.values(),
+            key=lambda x: x.get('timestamp', ''),
+            reverse=True
+        )[:MAX_LIVE_ITEMS]
+
         with open(dashboard_file, 'w', encoding='utf-8') as f:
-            # Ambil max 10 items terakhir untuk dashboard
-            json.dump(data_list[-10:], f, ensure_ascii=False, indent=2)
+            json.dump(merged, f, ensure_ascii=False, indent=2)
         
         print(f"[{datetime.now()}] ✅ Live data tersimpan: {dashboard_file}")
         

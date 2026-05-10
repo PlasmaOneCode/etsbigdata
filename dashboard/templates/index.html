@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -417,7 +418,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             flex-shrink: 0;
         }
 
@@ -450,8 +451,109 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* Analysis Section (Source Dist + Hourly Vol) */
+        .analysis-section {
+            margin-bottom: 32px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+
+        @media (max-width: 900px) {
+            .analysis-section {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .analysis-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+        }
+
+        .analysis-card-header {
+            padding: 16px 20px;
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+        }
+
+        .analysis-card-header.source {
+            background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%);
+            color: #1a1a1a;
+        }
+
+        .analysis-card-header.hourly {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #1a1a1a;
+        }
+
+        .analysis-card-body {
+            padding: 16px 20px;
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        /* Bar Chart */
+        .bar-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .bar-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+            width: 120px;
+            flex-shrink: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .bar-label.narrow {
+            width: 48px;
+        }
+
+        .bar-track {
+            flex: 1;
+            background: #f0f2f5;
+            border-radius: 6px;
+            height: 18px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s ease;
+        }
+
+        .bar-fill.source {
+            background: linear-gradient(90deg, #f7971e, #ffd200);
+        }
+
+        .bar-fill.hourly {
+            background: linear-gradient(90deg, #11998e, #38ef7d);
+        }
+
+        .bar-value {
+            font-size: 12px;
+            font-weight: 600;
+            color: #6b7280;
+            min-width: 36px;
+            text-align: right;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <!-- Header -->
@@ -518,6 +620,29 @@
                 <div class="loading">Memuat trivia...</div>
             </div>
         </div>
+
+        <!-- Analysis Section: Source Dist + Hourly Vol -->
+        <div class="analysis-section">
+            <!-- Distribusi Per Sumber -->
+            <div class="analysis-card">
+                <div class="analysis-card-header source">
+                    <span>🏢</span> Distribusi Berita per Sumber
+                </div>
+                <div class="analysis-card-body" id="source-dist-panel">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+
+            <!-- Volume Publikasi per Jam -->
+            <div class="analysis-card">
+                <div class="analysis-card-header hourly">
+                    <span>⏰</span> Volume Publikasi per Jam
+                </div>
+                <div class="analysis-card-body" id="hourly-vol-panel">
+                    <div class="loading">Memuat data...</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -559,7 +684,7 @@
          */
         function renderTrending(data) {
             const panel = document.getElementById('spark-panel');
-            
+
             if (!data || data.length === 0) {
                 panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📊</div>Belum ada data analitik. Tunggu Spark analysis selesai.</div>';
                 return;
@@ -580,7 +705,7 @@
                     </div>
                 `;
             });
-            
+
             panel.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📊</div>Tidak ada topik trending.</div>';
         }
 
@@ -589,7 +714,7 @@
          */
         function renderApiNews(data) {
             const panel = document.getElementById('live-api-panel');
-            
+
             if (!data || data.length === 0) {
                 panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📢</div>Menunggu data dari GNews API...</div>';
                 return;
@@ -600,7 +725,7 @@
                 const title = truncate(escapeHtml(item.title || ''), 80);
                 const source = escapeHtml(item.source || 'GNews');
                 const url = item.url ? `href="${item.url}" target="_blank" rel="noopener noreferrer"` : '';
-                
+
                 html += `
                     <div class="news-item">
                         <span class="news-source api">📢 ${source}</span>
@@ -608,7 +733,7 @@
                     </div>
                 `;
             });
-            
+
             panel.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📢</div>Belum ada berita dari API.</div>';
         }
 
@@ -617,7 +742,7 @@
          */
         function renderRssNews(data) {
             const panel = document.getElementById('live-rss-panel');
-            
+
             if (!data || data.length === 0) {
                 panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📰</div>Menunggu data dari RSS feeds...</div>';
                 return;
@@ -628,7 +753,7 @@
                 const title = truncate(escapeHtml(item.title || ''), 80);
                 const source = escapeHtml(item.source || 'RSS');
                 const url = item.url ? `href="${item.url}" target="_blank" rel="noopener noreferrer"` : '';
-                
+
                 html += `
                     <div class="news-item">
                         <span class="news-source rss">📰 ${source}</span>
@@ -636,7 +761,7 @@
                     </div>
                 `;
             });
-            
+
             panel.innerHTML = html || '<div class="empty-state"><div class="empty-state-icon">📰</div>Belum ada berita dari RSS.</div>';
         }
 
@@ -645,7 +770,7 @@
          */
         function renderTrivia(sparkData) {
             const container = document.getElementById('trivia-cards-container');
-            
+
             if (!sparkData) {
                 container.innerHTML = '<div class="empty-state">Data trivia belum tersedia.</div>';
                 return;
@@ -697,42 +822,99 @@
         }
 
         /**
+         * Render source distribution
+         */
+        function renderSourceDist(data) {
+            const panel = document.getElementById('source-dist-panel');
+            if (!data || data.length === 0) {
+                panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🏢</div>Belum ada data sumber.</div>';
+                return;
+            }
+            const max = data[0].total_news || 1;
+            let html = '';
+            data.forEach(item => {
+                const pct = Math.round((item.total_news / max) * 100);
+                html += `
+                    <div class="bar-row">
+                        <div class="bar-label" title="${escapeHtml(item.source)}">${escapeHtml(item.source)}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill source" style="width:${pct}%"></div>
+                        </div>
+                        <div class="bar-value">${item.total_news}</div>
+                    </div>`;
+            });
+            panel.innerHTML = html;
+        }
+
+        /**
+         * Render hourly volume
+         */
+        function renderHourlyVol(data) {
+            const panel = document.getElementById('hourly-vol-panel');
+            if (!data || data.length === 0) {
+                panel.innerHTML = '<div class="empty-state"><div class="empty-state-icon">⏰</div>Belum ada data jam.</div>';
+                return;
+            }
+            const max = Math.max(...data.map(d => d.count)) || 1;
+            // Fill all 24 hours
+            const byHour = {};
+            data.forEach(d => { byHour[d.jam_publikasi] = d.count; });
+            let html = '';
+            for (let h = 0; h < 24; h++) {
+                const count = byHour[h] || 0;
+                const pct = Math.round((count / max) * 100);
+                const label = String(h).padStart(2, '0') + ':00';
+                html += `
+                    <div class="bar-row">
+                        <div class="bar-label narrow">${label}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill hourly" style="width:${pct}%"></div>
+                        </div>
+                        <div class="bar-value">${count}</div>
+                    </div>`;
+            }
+            panel.innerHTML = html;
+        }
+
+        /**
          * Update dashboard data
          */
         async function updateDashboard() {
             const errorBanner = document.getElementById('error-banner');
-            
+
             try {
                 const response = await fetch(API_ENDPOINT);
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP ${response.status}`);
                 }
 
                 const data = await response.json();
-                
+
                 // Update timestamp
                 lastUpdateTime = new Date();
-                document.getElementById('last-updated').textContent = 
+                document.getElementById('last-updated').textContent =
                     `Terakhir diperbarui: ${formatTimestamp(lastUpdateTime)}`;
-                
+
                 // Hide error banner on success
                 errorBanner.classList.add('hidden');
-                
+
                 // Render data
                 renderTrending(data.spark?.top_words || []);
                 renderApiNews(data.live_api || []);
                 renderRssNews(data.live_rss || []);
                 renderTrivia(data.spark);
-                
+                renderSourceDist(data.spark?.source_dist || []);
+                renderHourlyVol(data.spark?.hourly_vol || []);
+
             } catch (error) {
                 console.error('Dashboard update error:', error);
-                
+
                 // Show error banner
                 const errorMsg = document.getElementById('error-message');
                 errorMsg.textContent = `Gagal mengambil data: ${error.message}. Dashboard akan mencoba lagi dalam 30 detik.`;
                 errorBanner.classList.remove('hidden');
-                
+
                 // Set placeholder "last updated" if first load
                 if (!lastUpdateTime) {
                     document.getElementById('last-updated').textContent = 'Koneksi error';
@@ -750,4 +932,5 @@
         console.log('🌍 NewsPulse Dashboard loaded. Auto-refresh every 30s.');
     </script>
 </body>
+
 </html>

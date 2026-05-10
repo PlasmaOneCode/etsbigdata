@@ -2,20 +2,21 @@ from flask import Flask, render_template, jsonify
 import json
 import os
 
-# Inisialisasi Flask dengan folder template yang benar
 app = Flask(__name__, template_folder='templates')
 
-# Lokasi folder data (relatif terhadap app.py)
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'data')
 
-# Debug mode control via environment variable (default: False for security)
 DEBUG_MODE = os.getenv('FLASK_DEBUG', 'False').lower() in ('true', '1', 'yes')
+
+MAX_DISPLAY_ITEMS = 50   # Artikel maksimal per kolom
+MIN_ITEMS_THRESHOLD = 10  # Jika live < angka ini, tarik fallback dari HDFS export
+
 
 @app.route('/')
 def index():
     return render_template('index.html')
 
-# PASTIKAN bagian ini ada dan tidak typo
+
 @app.route('/api/data')
 def get_data():
     data = {
@@ -23,29 +24,82 @@ def get_data():
         "live_rss": [],
         "spark": {"top_words": [], "source_dist": [], "hourly_vol": []}
     }
-    
-    def load_json(filename):
-        path = os.path.join(DATA_DIR, filename)
-        if os.path.exists(path):
-            try:
-                with open(path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
-            except:
-                return None
-        return None
 
-    # Mengambil data dari file JSON
-    api = load_json('live_api.json')
-    if api: data['live_api'] = api
-    
-    rss = load_json('live_rss.json')
-    if rss: data['live_rss'] = rss
-    
+    def load_json(filename):
+        """Load file JSON biasa atau JSONL (satu objek per baris)."""
+        path = os.path.join(DATA_DIR, filename)
+        if not os.path.exists(path):
+            return None
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)          # coba JSON array normal
+        except Exception:
+            pass
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                # fallback: JSONL — satu objek JSON per baris
+                result = []
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            result.append(json.loads(line))
+                        except Exception:
+                            pass            # lewati baris yang corrupt
+                return result if result else None
+        except Exception:
+            return None
+
+    def merge_with_fallback(live_file, fallback_file):
+        """
+        Selalu gabungkan live_file + fallback_file (data lama dari HDFS).
+        Deduplikasi by URL, urutkan terbaru dulu, batasi MAX_DISPLAY_ITEMS.
+        Ini memastikan berita batch lama tetap tampil walau batch baru sedikit.
+        """
+        live = load_json(live_file)
+        if not isinstance(live, list):
+            live = []
+
+        fallback_raw = load_json(fallback_file)
+        fallback = []
+        if isinstance(fallback_raw, list):
+            fallback = fallback_raw
+        elif isinstance(fallback_raw, dict):
+            fallback = [fallback_raw]
+
+        # Gabung live (prioritas lebih tinggi) + fallback, dedup by URL
+        seen = {}
+        for item in fallback:           # masuk duluan → akan ditimpa live jika URL sama
+            if not isinstance(item, dict):
+                continue
+            key = item.get('url') or item.get('title', '')
+            if key:
+                seen[key] = item
+        for item in live:               # live menimpa fallback jika URL sama
+            if not isinstance(item, dict):
+                continue
+            key = item.get('url') or item.get('title', '')
+            if key:
+                seen[key] = item
+
+        merged = sorted(
+            seen.values(),
+            key=lambda x: x.get('timestamp', ''),
+            reverse=True
+        )
+        return merged[:MAX_DISPLAY_ITEMS]
+
+    # --- Ambil berita dengan fallback ke HDFS export ---
+    data['live_api'] = merge_with_fallback('live_api.json', 'api_from_hdfs.json')
+    data['live_rss'] = merge_with_fallback('live_rss.json', 'rss_from_hdfs.json')
+
+    # --- Spark results ---
     spark = load_json('spark_results.json')
-    if spark: data['spark'] = spark
-            
+    if isinstance(spark, dict):
+        data['spark'] = spark
+
     return jsonify(data)
 
+
 if __name__ == '__main__':
-    # Jalankan Flask
     app.run(debug=DEBUG_MODE, port=5000)

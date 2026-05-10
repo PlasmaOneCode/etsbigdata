@@ -158,6 +158,8 @@ PR agency membutuhkan sistem monitoring otomatis untuk mendeteksi isu mana yang 
 | **🔥 Trending Topics** | Spark analysis (top words) | Real-time |
 | **📢 Berita Terkini (API)** | 10 artikel terakhir dari GNews | 10 min |
 | **📰 Feed Nasional (RSS)** | 10 artikel terakhir dari RSS | 5 min |
+| **🏢 Distribusi per Sumber** | Jumlah berita per media (CNN, Tempo, dll) | Setiap Spark run |
+| **⏰ Volume per Jam** | Jumlah berita tiap jam (00:00–23:00) | Setiap Spark run |
 
 ---
 
@@ -249,20 +251,21 @@ cd spark
 
 # Pastikan Java/JDK sudah terpasang:
 # java -version
-# Jika masih error JAVA_HOME, set dulu (PowerShell):
-# $env:JAVA_HOME="C:\Program Files\Java\jdk-17"
-# $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
-# Script ini membaca data dari HDFS (/data/news/api dan /data/news/rss),
-# lalu menyimpan ringkasan ke:
-# 1) /data/news/hasil/ (HDFS)
-# 2) dashboard/data/spark_results.json (untuk dashboard)
-
+# --- OPSI A: Jalankan SEKALI (single run) ---
 python analysis.py
 
-# Atau gunakan Jupyter:
-# jupyter notebook analysis.ipynb
+# --- OPSI B: Jalankan TERUS-MENERUS / Continuous Mode ---
+# (Disarankan agar dashboard selalu mendapat data terbaru)
+python analysis.py --continuous
+
+# Ubah interval (default 300 detik = 5 menit):
+python analysis.py --continuous --interval 120   # setiap 2 menit
 ```
+
+> **Catatan:** Mode `--continuous` akan menjalankan ulang analisis Spark secara otomatis
+> setiap N detik. Setiap iterasi membaca data terbaru dari HDFS dan memperbarui
+> `dashboard/data/spark_results.json` sehingga dashboard selalu menampilkan data terkini.
 
 ### **Step 6: Jalankan Dashboard**
 ```bash
@@ -578,5 +581,9 @@ Proyek ini dibuat untuk keperluan akademis — ETS Praktik Kelompok ITS 2026.
 
 ---
 
-**Last Updated:** April 27, 2026  
-**Status:** ✅ Fully Functional
+**Last Updated:** Mei 10, 2026  
+**Status:** ✅ Fully Functional  
+**Perubahan Terakhir:**
+- ✅ Spark mode `--continuous`: analisis otomatis berulang (tidak hanya sekali)
+- ✅ Panel dashboard baru: **Distribusi Berita per Sumber** (bar chart CSS)
+- ✅ Panel dashboard baru: **Volume Publikasi per Jam** (bar chart 00:00–23:00)
