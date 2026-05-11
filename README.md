@@ -1,3 +1,5 @@
+(Pengerjaan dilakukan menggunakan sharing file WhatsApp sehingga repo hanya memiliki sedikit kontributor 🙏)
+
 # 🌍 NewsPulse — Sistem Big Data Pipeline Analisis Berita Nasional Indonesia
 
 **Evaluasi Tengah Semester (ETS) — Praktik Kelompok**  
@@ -282,66 +284,6 @@ python app.py
 # Dashboard akan auto-refresh setiap 30 detik dengan data dari /api/data
 ```
 
-### **Step 7: Verifikasi Data Flow**
-
-**Check Kafka topics (tanpa shell script):**
-```bash
-# Buat file check_kafka.py untuk verifikasi topics
-# Atau gunakan Python langsung:
-python -c "
-from kafka import KafkaConsumer
-import json
-
-consumer = KafkaConsumer(
-    'news-api', 'news-rss',
-    bootstrap_servers='localhost:9092',
-    auto_offset_reset='earliest',
-    value_deserializer=lambda m: json.loads(m.decode('utf-8')),
-    consumer_timeout_ms=5000
-)
-
-print('📊 Membaca data dari Kafka topics...\n')
-count_api = 0
-count_rss = 0
-
-for message in consumer:
-    if message.topic == 'news-api':
-        count_api += 1
-        print(f'[news-api] {message.value[\"title\"][:60]}...')
-    elif message.topic == 'news-rss':
-        count_rss += 1
-        print(f'[news-rss] {message.value[\"title\"][:60]}...')
-    
-    if count_api + count_rss >= 10:
-        break
-
-consumer.close()
-print(f'\n✅ Total: {count_api} dari API, {count_rss} dari RSS')
-"
-```
-
-**Check HDFS:**
-```bash
-# Akses namenode container
-docker exec -it namenode bash
-
-# Lihat struktur folder
-hdfs dfs -ls -R /data/news/
-
-# Lihat isi file
-hdfs dfs -cat /data/news/api/news-api_2026-04-27_*.json | head -20
-```
-
-**Check Dashboard Files:**
-```bash
-# Lihat file live data
-cat dashboard/data/live_api.json | python -m json.tool
-cat dashboard/data/live_rss.json | python -m json.tool
-cat dashboard/data/spark_results.json | python -m json.tool
-```
-
----
-
 ## 📊 Screenshot & Output Sample
 
 ### **Sample Output - live_api.json:**
@@ -398,70 +340,6 @@ cat dashboard/data/spark_results.json | python -m json.tool
 ### **HDFS Namenode:**
 - Web UI: `http://localhost:9870`
 - Default FS: `hdfs://namenode:8020`
-
----
-
-## 🐛 Troubleshooting
-
-### **Issue 0: kafka-topics.sh: command not found**
-```
-bash: kafka-topics.sh: command not found
-```
-**Penyebab:** Script `kafka-topics.sh` tidak tersedia di container Kafka yang digunakan (`confluentinc/cp-kafka:7.3.0`). Script shell ini tidak di-include dalam image tersebut.
-
-**Solusi (Recommended):** ✅ Gunakan **Python script**:
-```bash
-# Gunakan setup_kafka_topics.py yang kami sediakan
-python setup_kafka_topics.py
-```
-
-**Solusi Alternative (Jika script Python tidak bisa):** Buat topics menggunakan Kafka Python Client langsung di script producer/consumer.
-
----
-
-### **Issue 1: Kafka tidak konek**
-```
-Error: Could not connect to bootstrap server 'localhost:9092'
-```
-**Solusi:**
-```bash
-# Verifikasi container Kafka berjalan
-docker ps | grep kafka
-
-# Cek log
-docker logs kafka-broker
-
-# Restart Kafka
-docker restart kafka-broker
-docker restart zookeeper
-```
-
-### **Issue 2: RSS feed kosong**
-```
-⚠️  File RSS tidak ada atau kosong
-```
-**Solusi:**
-- Pastikan URL RSS valid dengan `curl https://rss.kompas.com/...`
-- Check firewall/network blocking RSS domain
-- Verify consumer sudah running minimal 60 detik
-
-### **Issue 3: Spark analisis gagal**
-```
-❌ Error membaca data: ...
-```
-**Solusi:**
-- Pastikan consumer sudah menulis file ke `dashboard/data/`
-- Check file bukan kosong: `wc -c dashboard/data/live_api.json`
-- Jalankan analisis setelah data ada minimal 100+ articles
-
-### **Issue 4: Dashboard blank**
-```
-Memuat data... (tidak pernah selesai)
-```
-**Solusi:**
-- Check browser console (F12) untuk error
-- Verifikasi Flask app running: `netstat -an | grep 5000`
-- Akses API endpoint: `curl http://localhost:5000/api/data`
 
 ---
 
