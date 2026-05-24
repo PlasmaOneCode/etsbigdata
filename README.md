@@ -1,3 +1,5 @@
+(Pengerjaan dilakukan menggunakan sharing file WhatsApp sehingga repo hanya memiliki sedikit kontributor 🙏)
+
 # 🌍 NewsPulse — Sistem Big Data Pipeline Analisis Berita Nasional Indonesia
 
 **Evaluasi Tengah Semester (ETS) — Praktik Kelompok**  
