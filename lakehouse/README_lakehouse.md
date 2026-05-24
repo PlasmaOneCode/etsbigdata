@@ -391,39 +391,27 @@ Gold bisa karena:
 ## 6. Screenshot Output
 
 ### [Screenshot 1: Output Bronze Layer]
-*Tempel screenshot terminal `01_bronze.py` di sini*
-```
-✓ Auto-export berhasil: 64 file JSON → ./news_data_local/api/
-✓ Successfully read 64 records from local
-✓ Successfully wrote 64 records to Bronze
-✓ Auto-export berhasil: 38 file JSON → ./news_data_local/rss/
-✓ Successfully wrote 38 records to Bronze
-✓ BRONZE LAYER INGESTION COMPLETED
-```
+
+<img width="770" height="336" alt="image" src="https://github.com/user-attachments/assets/b0806796-be0c-4a33-b072-beb27c737bf5" />
 
 ### [Screenshot 2: Output Silver Layer — Statistik Transformasi]
-*Tempel screenshot bagian SILVER LAYER TRANSFORMATION SUMMARY di sini*
-```
-📊 STATISTICS:
-   Total records BEFORE cleaning: 102
-   Total records AFTER cleaning: [hasil aktual]
-   Total records removed: [jumlah] ([%])
-```
+
+<img width="1400" height="781" alt="image" src="https://github.com/user-attachments/assets/d2882374-637f-4eaa-8d98-48119d375d38" />
+
+<img width="1270" height="811" alt="image" src="https://github.com/user-attachments/assets/c4d06ced-ec61-48f0-8abb-03aeea72c19a" />
+
+<img width="753" height="625" alt="image" src="https://github.com/user-attachments/assets/97c57df5-74e9-4161-857d-07fab43ad019" />
+
 
 ### [Screenshot 3: Output Gold Layer — Top Words & Time Travel]
-*Tempel screenshot bagian TOP 15 WORDS dan TIME TRAVEL di sini*
-```
-📊 TOP 15 WORDS BY FREQUENCY:
-+----------+-----+
-|word      |count|
-...
 
-=== SILVER TABLE HISTORY ===
-=== SOURCE DISTRIBUTION - CURRENT VERSION ===
-=== SOURCE DISTRIBUTION - VERSION 0 (BEFORE UPDATE) ===
-```
+<img width="1397" height="797" alt="image" src="https://github.com/user-attachments/assets/55bbdf27-60d0-4a69-958d-5fff65a2806e" />
 
----
+<img width="796" height="776" alt="image" src="https://github.com/user-attachments/assets/a2a19824-9528-4949-bd8b-b9e2f128cf82" />
+
+<img width="882" height="822" alt="image" src="https://github.com/user-attachments/assets/9bf5e37e-c03c-4fc4-af14-b76cbd70e1d4" />
+
+<img width="799" height="442" alt="image" src="https://github.com/user-attachments/assets/f69fcbc5-e9d7-4828-9348-f68b324f1ca1" />
 
 ## 7. Refleksi: Delta Lake vs HDFS/CSV
 
