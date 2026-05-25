@@ -116,6 +116,13 @@ python lakehouse/02_silver.py
 
 # Step 3 — Agregasi Silver → Gold Layer + Time Travel Demo
 python lakehouse/03_gold.py
+
+# Lalu install berikut
+
+pip install pyarrow
+
+# Agar http://localhost:5000/lakehouse bisa membaca hasil data dari gold layer
+
 ```
 
 ### 2.3 Catatan Penting
