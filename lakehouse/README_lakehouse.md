@@ -122,6 +122,9 @@ python lakehouse/03_gold.py
 pip install pyarrow
 
 # Agar http://localhost:5000/lakehouse bisa membaca hasil data dari gold layer
+# Anda juga dapat menjalankan orchestrate.py di root folder agar bisa menjalankan secara continouos ketiga script ini
+
+python orchestrate.py
 
 ```
 

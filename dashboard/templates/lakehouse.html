@@ -490,18 +490,6 @@ function render(d) {
         </tr>`).join('')
     : `<tr><td colspan="6"><div class="empty-state">Tidak ada data</div></td></tr>`;
 
-  const cstRows = d.cross_source_topics.length
-    ? d.cross_source_topics.map(r=>`
-        <tr>
-          <td>${r.jam}:00</td>
-          <td>${r.word}</td>
-          <td>${r.sources}</td>
-          <td class="val-num">${fmt(r.cross_source_mentions)}</td>
-        </tr>`).join('')
-    : `<tr><td colspan="4"><div class="empty-state">
-         Tidak ada data — dibutuhkan ≥ 2 sumber membahas kata yang sama dalam jam yang sama
-       </div></td></tr>`;
-
   const ttRows = d.time_travel.length
     ? d.time_travel.map(r=>`
         <tr>
@@ -606,19 +594,6 @@ function render(d) {
         <table>
           <thead><tr><th>Jam</th><th>Kata</th><th>Freq/Jam</th><th>Prev Freq</th><th>Velocity</th><th>Velocity %</th></tr></thead>
           <tbody>${wvRows}</tbody>
-        </table>
-      </div>
-    </div>
-
-    <div class="card" style="margin-top:16px">
-      <div class="card-head head-gold">
-        <span class="card-head-title">cross_source_topics</span>
-        <span class="row-badge">Cross-Source Join · ${fmt(s.gold.cross_source_rows)} rows</span>
-      </div>
-      <div class="tbl-wrap">
-        <table>
-          <thead><tr><th>Jam</th><th>Kata</th><th>Sources</th><th>Mentions</th></tr></thead>
-          <tbody>${cstRows}</tbody>
         </table>
       </div>
     </div>

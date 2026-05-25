@@ -284,6 +284,29 @@ python app.py
 # Dashboard akan auto-refresh setiap 30 detik dengan data dari /api/data
 ```
 
+### **Setelah data ada di HDFS, jalankan ketiga script secara berurutan dari root folder repo:**
+
+```bash
+# Step 1 — Ingest HDFS → Bronze Layer (otomatis export dari Docker)
+python lakehouse/01_bronze.py
+
+# Step 2 — Cleaning Bronze → Silver Layer
+python lakehouse/02_silver.py
+
+# Step 3 — Agregasi Silver → Gold Layer + Time Travel Demo
+python lakehouse/03_gold.py
+
+# Lalu install berikut
+
+pip install pyarrow
+
+# Agar http://localhost:5000/lakehouse bisa membaca hasil data dari gold layer
+# Anda juga dapat menjalankan orchestrate.py di root folder agar bisa menjalankan secara continouos ketiga script ini
+
+python orchestrate.py
+
+```
+
 ## 📊 Output Sample
 
 ### **Sample Output - live_api.json:**
