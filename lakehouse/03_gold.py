@@ -5,7 +5,7 @@ Script ini menghasilkan 4 Gold tables:
 2. news_per_source: Distribusi berita per sumber (Repro ETS)
 3. word_velocity: ENHANCED - Deteksi trending words per jam via momentum
 4. cross_source_topics: ENHANCED - Topik dengan coverage multi-source (API+RSS)
-Plus: Time Travel demonstration untuk perbandingan versi tabel
+Plus: Time Travel demonstration untuk perbandingan versi tabel secara dinamis
 """
 
 from pyspark.sql import SparkSession, Window
@@ -91,11 +91,12 @@ def gold_table_1_word_freq(spark, df_silver):
             spark_count("*").alias("count")
         ).orderBy(desc("count"))
         
-        # Simpan top 50
+        # Simpan top 50 dengan opsi overwriteSchema
         gold_path = "./lakehouse_data/gold/word_freq"
         word_freq_df.limit(50).write \
             .format("delta") \
             .mode("overwrite") \
+            .option("overwriteSchema", "true") \
             .save(gold_path)
         
         print(f"✓ Saved top 50 words to: {gold_path}")
@@ -125,11 +126,12 @@ def gold_table_2_news_per_source(spark, df_silver):
             spark_count("*").alias("total_news")
         ).orderBy(desc("total_news"))
         
-        # Simpan
+        # Simpan dengan opsi overwriteSchema
         gold_path = "./lakehouse_data/gold/news_per_source"
         source_dist_df.write \
             .format("delta") \
             .mode("overwrite") \
+            .option("overwriteSchema", "true") \
             .save(gold_path)
         
         print(f"✓ Saved to: {gold_path}")
@@ -185,11 +187,12 @@ def gold_table_3_word_velocity(spark, df_silver):
         
         print("✓ Computed velocity and velocity_pct")
         
-        # Step 3: Simpan semua rows
+        # Step 3: Simpan semua rows dengan opsi overwriteSchema
         gold_path = "./lakehouse_data/gold/word_velocity"
         word_velocity_df.write \
             .format("delta") \
             .mode("overwrite") \
+            .option("overwriteSchema", "true") \
             .save(gold_path)
         
         print(f"✓ Saved to: {gold_path}")
@@ -252,11 +255,12 @@ def gold_table_4_cross_source_topics(spark, df_silver):
             spark_count("*").alias("cross_source_mentions")
         ).orderBy(desc("cross_source_mentions"), desc("jam"))
         
-        # Step 4: Simpan ke Delta
+        # Step 4: Simpan ke Delta dengan opsi overwriteSchema
         gold_path = "./lakehouse_data/gold/cross_source_topics"
         cross_source_freq.write \
             .format("delta") \
             .mode("overwrite") \
+            .option("overwriteSchema", "true") \
             .save(gold_path)
         
         print(f"✓ Saved to: {gold_path}")
@@ -275,7 +279,7 @@ def gold_table_4_cross_source_topics(spark, df_silver):
 def time_travel_demo(spark):
     """
     TIME TRAVEL DEMONSTRATION
-    Menunjukkan capability Delta Lake: versioning & time travel
+    Menunjukkan capability Delta Lake: versioning & time travel secara dinamis
     """
     print("\n" + "=" * 80)
     print("TIME TRAVEL DEMONSTRATION")
@@ -292,12 +296,16 @@ def time_travel_demo(spark):
         history_df = deltaTable.history()
         history_df.select("version", "timestamp", "operation", "operationParameters").show(10, truncate=False)
         
+        # Dapatkan ID versi terkini (sebelum update dijalankan)
+        version_before = history_df.select("version").first()[0]
+        print(f"✓ Current table version before update: {version_before}")
+        
         # Step 2: Update NULL source_normalized ke "UNKNOWN"
         print("\n→ Step 2: Performing Update Operation")
         print("=" * 80)
         print("Updating: SET source_normalized = 'UNKNOWN' where NULL/empty")
         
-        update_count = deltaTable.update(
+        deltaTable.update(
             condition="source_normalized IS NULL OR source_normalized = ''",
             set={"source_normalized": lit("UNKNOWN")}
         )
@@ -312,14 +320,15 @@ def time_travel_demo(spark):
             .groupBy("source_normalized").agg(spark_count("*").alias("count")) \
             .orderBy(desc("count")).show(20, truncate=False)
         
-        print("\n=== SOURCE DISTRIBUTION - VERSION 0 (BEFORE UPDATE) ===")
+        # Bandingkan secara dinamis dengan versi historis tepat sebelum update (version_before)
+        print(f"\n=== SOURCE DISTRIBUTION - VERSION {version_before} (BEFORE UPDATE) ===")
         try:
             spark.read.format("delta") \
-                .option("versionAsOf", 0).load(silver_path) \
+                .option("versionAsOf", version_before).load(silver_path) \
                 .groupBy("source_normalized").agg(spark_count("*").alias("count")) \
                 .orderBy(desc("count")).show(20, truncate=False)
         except Exception as e:
-            print(f"⚠ Cannot read version 0 (this is the first write): {e}")
+            print(f"⚠ Cannot read version {version_before}: {e}")
         
         print("\n✓ TIME TRAVEL DEMONSTRATION COMPLETED")
     

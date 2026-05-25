@@ -7,7 +7,8 @@ Transformasi: duplikat, null/empty, timestamp parsing, text normalization, sourc
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (
     col, lower, upper, trim, split, size, to_timestamp, hour,
-    to_date, dayofweek, count as spark_count, when
+    to_date, dayofweek, count as spark_count, when,
+    regexp_extract, concat_ws, lpad, coalesce
 )
 from delta import configure_spark_with_delta_pip
 
@@ -52,9 +53,9 @@ def read_bronze_layer(spark):
         df_rss = None
         rss_count = 0
     
-    # Gabung API & RSS
+    # Gabung API & RSS menggunakan unionByName
     if df_api is not None and df_rss is not None:
-        df_bronze = df_api.union(df_rss)
+        df_bronze = df_api.unionByName(df_rss, allowMissingColumns=True)
     elif df_api is not None:
         df_bronze = df_api
     elif df_rss is not None:
@@ -117,18 +118,59 @@ def transformation_2_filter_null_empty(df):
 
 def transformation_3_parse_timestamp(df):
     """
-    TRANSFORMASI 3: Parse & ekstrak timestamp
-    - parsed_timestamp: convert string timestamp ke TIMESTAMP
-    - jam: ekstrak hour (0-23)
-    - tanggal: ekstrak date
-    - hari_dalam_minggu: day of week (1=Sunday, 7=Saturday)
+    TRANSFORMASI 3: Parse & ekstrak timestamp dengan aman menggunakan Regex Parser
+    - parsed_timestamp: konversi string timestamp ke TIMESTAMP format
+    - jam: ekstrak jam (0-23)
+    - tanggal: ekstrak tipe Date
+    - hari_dalam_minggu: hari dalam seminggu (1=Ahad, 7=Sabtu)
     """
     print("\n" + "-" * 80)
-    print("TRANSFORMATION 3: Parsing & Extracting Timestamp")
+    print("TRANSFORMATION 3: Parsing & Extracting Timestamp (Robust Multi-Format)")
     print("-" * 80)
     
-    df_clean = df.withColumn(
-        "parsed_timestamp", to_timestamp(col("timestamp"))
+    # Pola regex untuk mengekstrak format RFC 822 (RSS): "Mon, 4 May 2026 13:26:26 +0700"
+    rss_pattern = r"^([A-Za-z]{3}),\s+(\d{1,2})\s+([A-Za-z]{3})\s+(\d{4})\s+(\d{2}:\d{2}:\d{2})\s+([+-]\d{4})"
+    
+    day_col = regexp_extract(col("timestamp"), rss_pattern, 2)
+    month_col = regexp_extract(col("timestamp"), rss_pattern, 3)
+    year_col = regexp_extract(col("timestamp"), rss_pattern, 4)
+    time_col = regexp_extract(col("timestamp"), rss_pattern, 5)
+    offset_col = regexp_extract(col("timestamp"), rss_pattern, 6)
+    
+    # Mapping nama bulan Indonesia & Inggris ke format angka "01"-"12"
+    month_num = when(month_col == "Jan", "01") \
+               .when(month_col == "Feb", "02") \
+               .when(month_col == "Mar", "03") \
+               .when(month_col == "Apr", "04") \
+               .when(month_col == "May", "05") \
+               .when(month_col == "Mei", "05") \
+               .when(month_col == "Jun", "06") \
+               .when(month_col == "Jul", "07") \
+               .when(month_col == "Aug", "08") \
+               .when(month_col == "Ago", "08") \
+               .when(month_col == "Sep", "09") \
+               .when(month_col == "Oct", "10") \
+               .when(month_col == "Okt", "10") \
+               .when(month_col == "Nov", "11") \
+               .when(month_col == "Dec", "12") \
+               .when(month_col == "Des", "12") \
+               .otherwise("01")
+               
+    # Rekonstruksi ke string tanggal standar: "yyyy-MM-dd HH:mm:ss Z"
+    rss_formatted_str = concat_ws(
+        " ",
+        concat_ws("-", year_col, month_num, lpad(day_col, 2, "0")),
+        time_col,
+        offset_col
+    )
+    
+    # Gunakan coalesce untuk mencoba parser ISO-8601 (API) kemudian parser Kustom (RSS)
+    df_parsed = df.withColumn(
+        "parsed_timestamp",
+        coalesce(
+            to_timestamp(col("timestamp")),  # Coba parser default ISO (untuk API)
+            to_timestamp(rss_formatted_str, "yyyy-MM-dd HH:mm:ss Z")  # Parser kustom (untuk RSS)
+        )
     ).withColumn(
         "jam", hour(col("parsed_timestamp"))
     ).withColumn(
@@ -137,10 +179,19 @@ def transformation_3_parse_timestamp(df):
         "hari_dalam_minggu", dayofweek(col("parsed_timestamp"))
     )
     
-    print("✓ New columns added: parsed_timestamp, jam, tanggal, hari_dalam_minggu")
-    print("\nSample timestamp values:")
+    # Filter kualitas data: Hapus baris yang gagal di-parse (opsional, sebagai pengaman)
+    count_before = df_parsed.count()
+    df_clean = df_parsed.filter(col("parsed_timestamp").isNotNull())
+    count_after = df_clean.count()
+    unparseable_removed = count_before - count_after
+    
+    print(f"→ Rows before parsing: {count_before}")
+    print(f"→ Rows after parsing: {count_after}")
+    print(f"→ Unparseable timestamps removed: {unparseable_removed}")
+    
+    print("\nSample parsed timestamp values:")
     df_clean.select("timestamp", "parsed_timestamp", "jam", "tanggal", 
-                    "hari_dalam_minggu").show(5, truncate=False)
+                    "hari_dalam_minggu").show(10, truncate=False)
     
     return df_clean
 
@@ -170,7 +221,6 @@ def transformation_5_standardize_source(df):
     """
     TRANSFORMASI 5: Standarisasi nama sumber
     - source_normalized: uppercase & trim
-    Tujuan: "Kompas.com", "kompas.com", "KOMPAS.COM" → "KOMPAS.COM"
     """
     print("\n" + "-" * 80)
     print("TRANSFORMATION 5: Standardizing Source Names")
@@ -241,9 +291,12 @@ def main():
         # Simpan ke Silver Layer
         silver_path = "./lakehouse_data/silver/news"
         print(f"\n→ Writing to Silver: {silver_path}")
+        
+        # Solusi schema mismatch: Tambahkan opsi overwriteSchema ke "true"
         df_silver.write \
             .format("delta") \
             .mode("overwrite") \
+            .option("overwriteSchema", "true") \
             .save(silver_path)
         
         print("\n" + "=" * 80)
